@@ -7,15 +7,17 @@ import streamlit as st
 from src.charts import (
     plot_average_attitude,
     plot_group_distribution,
+    plot_polarization_trend,
     plot_persona_attitude,
 )
+from src.metrics import compute_communication_effect, compute_final_metrics
 from src.models import SimulationConfig
 from src.report import (
     generate_governance_report,
     generate_representative_comments,
 )
 from src.scenarios import get_scenario_options
-from src.simulator import run_simulation, summarize_final_distribution
+from src.simulator import run_simulation
 from src.utils import get_reference_assets_summary
 
 
@@ -63,8 +65,7 @@ def main() -> None:
 
     st.subheader("项目简介")
     st.write(
-        "系统通过可解释的规则模拟政策信息影响、社交互动影响与随机扰动，不用于预测真实社会，"
-        "主要用于教学、展示与探索性分析。"
+        "本工具用于演示不同公众画像在公共政策事件中的态度演化，不用于预测真实舆情。"
     )
 
     reference_assets = get_reference_assets_summary()
@@ -101,16 +102,18 @@ def main() -> None:
     df = run_simulation(config)
     representative_comments = generate_representative_comments(df, selected_scenario, intervention)
     governance_report = generate_governance_report(df, selected_scenario, intervention)
-    final_round = df["round"].max()
-    final_df = df.loc[df["round"] == final_round]
-    final_distribution = summarize_final_distribution(df)
-    final_average = final_df["attitude"].mean()
-    total_agents = max(1, len(final_df))
+    final_metrics = compute_final_metrics(df)
+    communication_effect = compute_communication_effect(df)
 
-    metric_col1, metric_col2, metric_col3 = st.columns(3)
-    metric_col1.metric("最终平均态度", f"{final_average:.2f}")
-    metric_col2.metric("最终支持率", f"{final_distribution['支持'] / total_agents:.1%}")
-    metric_col3.metric("最终反对率", f"{final_distribution['反对'] / total_agents:.1%}")
+    metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
+    metric_col1.metric("最终支持率", f"{final_metrics['final_support_rate']:.1%}")
+    metric_col2.metric("最终中立率", f"{final_metrics['final_neutral_rate']:.1%}")
+    metric_col3.metric("最终反对率", f"{final_metrics['final_oppose_rate']:.1%}")
+    metric_col4.metric("群体分化程度", f"{final_metrics['persona_gap']:.2f}")
+    metric_col5.metric(
+        "沟通效果变化",
+        f"{communication_effect['effect_label']} ({communication_effect['mean_attitude_delta']:+.2f})",
+    )
 
     col1, col2 = st.columns(2)
     with col1:
@@ -122,6 +125,9 @@ def main() -> None:
 
     st.subheader("不同 Agent 类型的平均态度变化")
     st.plotly_chart(plot_persona_attitude(df), use_container_width=True)
+
+    st.subheader("群体分化程度变化")
+    st.plotly_chart(plot_polarization_trend(df), use_container_width=True)
 
     st.subheader("代表性 Agent 发言")
     for comment in representative_comments:

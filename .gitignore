@@ -18,7 +18,10 @@ build/
 .vscode/
 .idea/
 node_modules/
+cookie.txt
+scrape_history.json
 train.jsonl
 validation.jsonl
 auto_scraper.py
+zhihu-trending-top-search/
 *.log

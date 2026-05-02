@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from src.metrics import compute_communication_effect, compute_final_metrics, compute_polarization_index
 from src.scenarios import Scenario
-from src.simulator import summarize_final_distribution
 from src.utils import attitude_to_label
 
 
@@ -69,14 +69,12 @@ def generate_representative_comments(
 
 def generate_governance_report(df: pd.DataFrame, scenario: Scenario, intervention: str) -> str:
     """Generate a formal governance analysis report."""
-    initial_round = df["round"].min()
     final_round = df["round"].max()
-
-    initial_mean = df.loc[df["round"] == initial_round, "attitude"].mean()
-    final_mean = df.loc[df["round"] == final_round, "attitude"].mean()
-    delta = final_mean - initial_mean
-
-    final_distribution = summarize_final_distribution(df)
+    initial_round = df["round"].min()
+    final_metrics = compute_final_metrics(df)
+    communication_effect = compute_communication_effect(df)
+    polarization = compute_polarization_index(df)
+    final_population = len(df.loc[df["round"] == final_round])
     persona_means = (
         df.loc[df["round"] == final_round]
         .groupby("persona_type")["attitude"]
@@ -85,36 +83,41 @@ def generate_governance_report(df: pd.DataFrame, scenario: Scenario, interventio
     )
     highest_persona = persona_means.index[0]
     lowest_persona = persona_means.index[-1]
-    polarization = float(persona_means.max() - persona_means.min())
-    support_rate = final_distribution["支持"] / max(1, sum(final_distribution.values()))
-    oppose_rate = final_distribution["反对"] / max(1, sum(final_distribution.values()))
+    final_distribution = {
+        "支持": round(final_metrics["final_support_rate"] * final_population),
+        "中立": round(final_metrics["final_neutral_rate"] * final_population),
+        "反对": round(final_metrics["final_oppose_rate"] * final_population),
+    }
 
-    trend_text = "整体接受度有所提升" if delta > 0.05 else "整体态度略有回落" if delta < -0.05 else "整体态度总体平稳"
     polarization_text = (
         "不同群体之间出现了较明显分化"
-        if polarization > 0.45
+        if polarization["persona_gap"] > 0.45
         else "不同群体之间虽有差异，但尚未形成强烈对立"
     )
     legitimacy_text = (
         "治理合法性基础相对较强，但仍需兼顾少数谨慎群体的风险顾虑。"
-        if support_rate >= 0.5 and oppose_rate < 0.25
+        if final_metrics["final_support_rate"] >= 0.5 and final_metrics["final_oppose_rate"] < 0.25
         else "公众接受度并未自动转化为稳固合法性，治理设计仍需回应不同群体的关切。"
     )
 
     return f"""
-**一、总体判断**
+**一、模拟设置**
 
-本轮模拟围绕“{scenario.name}”展开，在“{intervention}”这一信息干预条件下，群体平均态度由 {initial_mean:.2f} 变化至 {final_mean:.2f}，说明 {trend_text}。从 AI 治理视角看，公众接受度并不是由单一政策信号决定，而是同时受到政策沟通质量、风险感知、制度信任、算法监管预期以及群体互动机制的共同影响。{legitimacy_text}
+本轮模拟围绕“{scenario.name}”展开，采用“{intervention}”作为信息干预方式，观察第 {initial_round} 轮到第 {final_round} 轮之间不同公众画像的态度变化。模型将政策收益感知、风险感知、制度信任和社会互动作为主要驱动因素，用于展示解释性情境，而不是复现真实社会数据。
 
-**二、群体结构特征**
+**二、主要结果**
 
-在最终轮次中，支持者 {final_distribution["支持"]} 人，中立者 {final_distribution["中立"]} 人，反对者 {final_distribution["反对"]} 人。{polarization_text}。其中，平均态度相对更积极的群体是“{highest_persona}”，相对更谨慎或保留的群体是“{lowest_persona}”。这一结构说明，面对同一 AI 治理议题，不同公众并不会自然收敛为单一态度，而会围绕创新收益、风险外溢、权利保障和制度可信度形成差异化判断。尤其是在涉及算法应用、公共数据、课堂治理或监管透明度时，风险敏感型和权益保护型群体往往更关注程序正义与责任边界，而制度信任型群体更容易受到正式解释和规则明确性的影响。
+在当前参数设定下，最终轮次中支持者约 {final_distribution["支持"]} 人，中立者约 {final_distribution["中立"]} 人，反对者约 {final_distribution["反对"]} 人。最终平均态度为 {final_metrics["final_average_attitude"]:.2f}，相较初始轮次的平均态度变化为 {communication_effect["mean_attitude_delta"]:+.2f}，对应的沟通效果判断为“{communication_effect["effect_label"]}”。这表明在当前情境中，政策沟通确实会影响群体总体方向，但并不会自动消除公众之间的异质性。{legitimacy_text}
 
-**三、公共治理启示**
+**三、群体分化观察**
 
-从公共管理与 AI 治理视角看，至少有四点启示。第一，政策沟通不能只强调技术先进性，还需要把应用边界、问责链条、纠错机制和算法监管安排讲清楚。第二，制度信任能够提升正式政策解释的效果，但这种效果通常建立在程序透明和执行可信的前提之上。第三，面对风险感知较高或权益保护诉求较强的公众，仅以效率和便利性作为论证并不足够，必须同步回应知情权、公平性、申诉权与弱势群体保护问题。第四，群体分化并不必然意味着治理失败，它也可能提示治理部门需要采用更精细的分层沟通策略，以增强政策接受度并巩固治理合法性。
+最终轮次的个体态度离散度为 {polarization["individual_polarization"]:.2f}，不同 persona 平均态度之间的群体分化差距为 {polarization["persona_gap"]:.2f}。{polarization_text}。其中，平均态度相对更积极的群体是“{highest_persona}”，相对更谨慎或保留的群体是“{lowest_persona}”。这说明，同一 AI 治理议题下，不同公众不会自然收敛为一致意见，而会围绕创新收益、风险外溢、权利保障和制度可信度形成差异化回应。
 
-**四、研究定位说明**
+**四、政策沟通启示**
 
-本系统是解释性、探索性的 AI×社会科学模拟原型，适合用于课堂展示、研究讨论与概念验证。它能够帮助观察公众态度演化的方向、节奏与分化结构，但不构成对真实社会行为或政策结果的预测。
+从公共管理与 AI 治理视角看，这一结果提示至少三点。第一，政策沟通不能只强调技术先进性，还需要同步说明应用边界、问责链条和算法监管安排。第二，制度信任能够增强正式解释的效果，但前提是规则清晰、程序透明且可执行。第三，对于风险感知较高或权益保护诉求较强的公众，仅以效率或便利性作为论证通常不足以建立稳定支持，仍需回应公平性、知情权、申诉路径与弱势群体保护问题。
+
+**五、模型边界**
+
+本系统是解释性、探索性的 AI×社会科学模拟原型，适合用于课堂展示、研究讨论与概念验证。它能够帮助观察公众态度演化的方向、节奏与分化结构，但不构成对真实社会行为或政策结果的预测，也不应被理解为真实舆情或政策后果的测量工具。
 """.strip()

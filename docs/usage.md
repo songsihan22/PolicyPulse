@@ -1,31 +1,32 @@
-# 使用说明
+# Usage
 
-## 1. 安装依赖
+## Install
 ```bash
 pip install -r requirements.txt
 ```
 
-## 2. 启动项目
+## Run App
 ```bash
 streamlit run app.py
 ```
 
-## 3. 运行测试
+## Run Tests
 ```bash
 python -m pytest
 ```
 
-## 4. 交互流程
-1. 在左侧选择政策场景
-2. 设置 Agent 数量、模拟轮数、信息干预方式和随机种子
-3. 点击“运行模拟”
-4. 查看摘要指标、图表、代表性发言和治理分析报告
+## Suggested Demo Settings
+- 场景：生成式 AI 进入高校课堂
+- Agent 数量：60
+- 模拟轮数：12
+- 信息干预：平衡型公共讨论
+- 随机种子：42
 
-## 5. 参考语料说明
-- 项目运行默认不依赖大文件语料
-- 若仓库中保留 `sample_reference.jsonl`，页面可展示轻量参考语料概览
-- `train.jsonl` 与 `validation.jsonl` 不建议随仓库上传
+## Interaction Steps
+1. 在侧边栏选择政策场景和参数
+2. 点击“运行模拟”
+3. 查看指标卡、图表、代表性发言和治理分析报告
 
-## 6. API Key 说明
-本项目当前版本默认使用规则模型和模板报告，不依赖真实 API Key；未来可扩展 LLM 生成代表性发言和分析报告。
-
+## Notes
+- 项目运行不依赖 `train.jsonl`、`validation.jsonl` 等大型文件
+- `sample_reference.jsonl` 仅用于轻量示例展示

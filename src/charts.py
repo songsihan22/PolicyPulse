@@ -5,17 +5,19 @@ from __future__ import annotations
 import pandas as pd
 import plotly.express as px
 
+from src.metrics import compute_round_metrics
+
 
 def plot_average_attitude(df: pd.DataFrame):
     """Plot mean attitude by round."""
-    chart_df = df.groupby("round", as_index=False)["attitude"].mean()
+    chart_df = compute_round_metrics(df)
     fig = px.line(
         chart_df,
         x="round",
-        y="attitude",
+        y="average_attitude",
         markers=True,
         title="群体平均态度演化趋势",
-        labels={"round": "轮次", "attitude": "平均态度"},
+        labels={"round": "轮次", "average_attitude": "平均态度"},
     )
     fig.update_layout(yaxis_range=[-1, 1], template="plotly_white")
     return fig
@@ -23,13 +25,19 @@ def plot_average_attitude(df: pd.DataFrame):
 
 def plot_group_distribution(df: pd.DataFrame):
     """Plot support/neutral/oppose ratio by round."""
-    chart_df = (
-        df.groupby(["round", "stance"], as_index=False)
-        .size()
-        .rename(columns={"size": "count"})
+    chart_df = compute_round_metrics(df).melt(
+        id_vars="round",
+        value_vars=["support_rate", "neutral_rate", "oppose_rate"],
+        var_name="stance_key",
+        value_name="ratio",
     )
-    totals = chart_df.groupby("round")["count"].transform("sum")
-    chart_df["ratio"] = chart_df["count"] / totals
+    chart_df["stance"] = chart_df["stance_key"].map(
+        {
+            "support_rate": "支持",
+            "neutral_rate": "中立",
+            "oppose_rate": "反对",
+        }
+    )
     fig = px.area(
         chart_df,
         x="round",
@@ -56,4 +64,31 @@ def plot_persona_attitude(df: pd.DataFrame):
         labels={"round": "轮次", "attitude": "平均态度", "persona_type": "Agent 类型"},
     )
     fig.update_layout(yaxis_range=[-1, 1], template="plotly_white", legend_title_text="Agent 类型")
+    return fig
+
+
+def plot_polarization_trend(df: pd.DataFrame):
+    """Plot attitude dispersion and persona gap by round."""
+    chart_df = compute_round_metrics(df).melt(
+        id_vars="round",
+        value_vars=["attitude_std", "persona_gap"],
+        var_name="metric",
+        value_name="value",
+    )
+    chart_df["metric"] = chart_df["metric"].map(
+        {
+            "attitude_std": "个体态度离散度",
+            "persona_gap": "群体分化差距",
+        }
+    )
+    fig = px.line(
+        chart_df,
+        x="round",
+        y="value",
+        color="metric",
+        markers=True,
+        title="群体分化程度变化",
+        labels={"round": "轮次", "value": "指标值", "metric": "分化指标"},
+    )
+    fig.update_layout(template="plotly_white", legend_title_text="分化指标")
     return fig

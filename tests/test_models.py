@@ -1,3 +1,5 @@
+import pytest
+
 from src.models import AgentProfile, SimulationConfig
 
 
@@ -30,3 +32,13 @@ def test_simulation_config_creation():
     assert config.num_agents == 60
     assert config.num_rounds == 12
 
+
+def test_invalid_scenario_name_is_rejected():
+    with pytest.raises(ValueError):
+        SimulationConfig(
+            scenario_name="不存在的场景",
+            num_agents=60,
+            num_rounds=12,
+            intervention="官方政策解释",
+            random_seed=42,
+        )
